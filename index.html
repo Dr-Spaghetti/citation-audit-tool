@@ -301,6 +301,46 @@ const STATUSES = [
 const STATUS_MAP = Object.fromEntries(STATUSES.map(s=>[s.val,s]));
 const HIGH_PRIORITY_DIRS = ['gbp','yelp','bbb','fb','li','avvo_atty','mart_atty','justia_atty','fl_firm'];
 
+// Search query builders per directory — {name, city, state, owner}
+const DIR_SEARCH = {
+  gbp:        ({name,city})        => `"${name}" "${city}" Google Business Profile`,
+  apple:      ({name,city})        => `"${name}" "${city}" Apple Maps business`,
+  bing:       ({name,city})        => `"${name}" "${city}" site:bingplaces.com`,
+  fb:         ({name,city})        => `"${name}" "${city}" site:facebook.com`,
+  li:         ({name})             => `"${name}" site:linkedin.com/company`,
+  yelp:       ({name,city})        => `"${name}" "${city}" site:yelp.com`,
+  fl_firm:    ({name,city})        => `"${name}" "${city}" site:findlaw.com`,
+  avvo_firm:  ({name,city})        => `"${name}" "${city}" site:avvo.com`,
+  avvo_atty:  ({owner})            => `"${owner}" site:avvo.com attorney`,
+  mart_firm:  ({name,city})        => `"${name}" "${city}" site:martindale.com`,
+  mart_atty:  ({owner})            => `"${owner}" site:martindale.com`,
+  justia_firm:({name,city})        => `"${name}" "${city}" site:justia.com`,
+  justia_atty:({owner})            => `"${owner}" site:justia.com attorney`,
+  law_firm:   ({name,city})        => `"${name}" "${city}" site:lawyers.com`,
+  law_atty:   ({owner})            => `"${owner}" site:lawyers.com`,
+  sl_firm:    ({name,city})        => `"${name}" "${city}" site:superlawyers.com`,
+  sl_atty:    ({owner})            => `"${owner}" site:superlawyers.com`,
+  bl_atty:    ({owner})            => `"${owner}" site:bestlawyers.com`,
+  nolo_firm:  ({name,city})        => `"${name}" "${city}" site:nolo.com`,
+  nolo_atty:  ({owner})            => `"${owner}" site:nolo.com`,
+  hg_firm:    ({name,city})        => `"${name}" "${city}" site:hg.org`,
+  hg_atty:    ({owner})            => `"${owner}" site:hg.org`,
+  lawinfo:    ({name,city})        => `"${name}" "${city}" site:lawinfo.com`,
+  bbb:        ({name,city})        => `"${name}" "${city}" site:bbb.org`,
+  statebar:   ({owner,state})      => `"${owner}" "${state}" state bar attorney profile`,
+  yp:         ({name,city})        => `"${name}" "${city}" site:yellowpages.com`,
+  chambers:   ({name})             => `"${name}" site:chambers.com`,
+  mapquest:   ({name,city})        => `"${name}" "${city}" site:mapquest.com`,
+  nextdoor:   ({name,city})        => `"${name}" "${city}" site:nextdoor.com business`,
+  alignable:  ({name,city})        => `"${name}" "${city}" site:alignable.com`,
+  wiki:       ({name})             => `"${name}" law firm site:wikipedia.org`,
+  waze:       ({name,city})        => `"${name}" "${city}" Waze place`,
+  dataaxle:   ({name,city})        => `"${name}" "${city}" "Data Axle" OR "Infogroup" listing`,
+  neustar:    ({name,city})        => `"${name}" "${city}" "Neustar Localeze" OR "TransUnion Local"`,
+  foursquare: ({name,city})        => `"${name}" "${city}" site:foursquare.com`,
+  ypthryv:    ({name,city})        => `"${name}" "${city}" site:thryv.com`,
+};
+
 // ===== STATE =====
 let state = JSON.parse(localStorage.getItem('citation_audit_v2') || '{"clients":[]}');
 let activeClientId = null;
@@ -641,6 +681,7 @@ function renderLocationContent(){
         <option value="">All Categories</option>
         ${cats.map(c=>`<option value="${c}">${c}</option>`).join('')}
       </select>
+      <button class="btn btn-ghost btn-sm" onclick="searchAllUnsearched()" title="Open Google search for every directory missing a URL" style="color:var(--accent);border-color:rgba(79,142,247,.3)">🔍 Search All Unsearched</button>
       <button class="btn btn-ghost btn-sm" onclick="markAllFound()">✅ Mark all live</button>
     </div>
     <div id="dir-sections">
@@ -662,6 +703,18 @@ function renderLocationContent(){
               ${catDirs.map((d,i)=>{
                 const entry=loc.dirs[d.id]||{status:'not_started',url:'',notes:''};
                 const sinfo=STATUS_MAP[entry.status]||STATUS_MAP['not_started'];
+                const hasSearch=!!DIR_SEARCH[d.id];
+                const searchBtnHtml=hasSearch?`<button onclick="searchDir('${loc.id}','${d.id}')" style="background:rgba(79,142,247,.1);border:1px solid rgba(79,142,247,.25);border-radius:5px;padding:3px 7px;color:var(--accent);cursor:pointer;font-size:11px;white-space:nowrap;flex-shrink:0" title="Open targeted Google search">🔍</button>`:'';
+                const urlCellHtml=entry.url
+                  ?`<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+                      <a href="${esc(entry.url)}" target="_blank" class="url-link" title="${esc(entry.url)}">${esc(entry.url.slice(0,40))}${entry.url.length>40?'…':''}</a>
+                      <button onclick="editUrl('${loc.id}','${d.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;flex-shrink:0" title="Edit URL">✏️</button>
+                      ${searchBtnHtml}
+                    </div>`
+                  :`<div style="display:flex;gap:4px;align-items:center">
+                      <button class="btn btn-ghost btn-sm" onclick="editUrl('${loc.id}','${d.id}')">+ Add URL</button>
+                      ${searchBtnHtml}
+                    </div>`;
                 return `<tr class="dir-row" data-dirid="${d.id}" data-cat="${d.cat}" data-name="${d.name.toLowerCase()}">
                   <td class="dir-num">${DIRS.indexOf(d)+1}</td>
                   <td class="dir-name">${esc(d.name)}</td>
@@ -670,15 +723,7 @@ function renderLocationContent(){
                       ${STATUSES.map(s=>`<option value="${s.val}"${entry.status===s.val?' selected':''}>${s.label}</option>`).join('')}
                     </select>
                   </td>
-                  <td class="url-cell">
-                    ${entry.url
-                      ?`<div style="display:flex;gap:4px;align-items:center">
-                          <a href="${esc(entry.url)}" target="_blank" class="url-link" title="${esc(entry.url)}">${esc(entry.url.slice(0,45))}${entry.url.length>45?'…':''}</a>
-                          <button onclick="editUrl('${loc.id}','${d.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px" title="Edit URL">✏️</button>
-                        </div>`
-                      :`<button class="btn btn-ghost btn-sm" onclick="editUrl('${loc.id}','${d.id}')">+ Add URL</button>`
-                    }
-                  </td>
+                  <td class="url-cell">${urlCellHtml}</td>
                   <td><input class="notes-input" value="${esc(entry.notes||'')}" placeholder="Notes…" onchange="updateDir('${loc.id}','${d.id}','notes',this.value)" onblur="updateDir('${loc.id}','${d.id}','notes',this.value)"></td>
                 </tr>`;
               }).join('')}
@@ -720,6 +765,31 @@ function updateDir(locId,dirId,field,val){
 }
 
 function getStatusCls(val){return STATUS_MAP[val]?.cls||'s-notstarted';}
+
+function getSearchQueryData(locId){
+  const c=getClient();
+  const loc=c?.locations.find(l=>l.id===locId)||getLocation();
+  if(!c||!loc)return null;
+  const cityPart=(loc.city||'').split(',')[0].trim();
+  const statePart=(loc.city||'').split(',')[1]?.trim()?.split(' ')[0]||'';
+  return{name:loc.gbpname||c.name,city:cityPart,state:statePart,owner:c.owner};
+}
+
+function searchDir(locId,dirId){
+  const qd=getSearchQueryData(locId);
+  const builder=DIR_SEARCH[dirId];
+  if(!qd||!builder)return;
+  window.open('https://www.google.com/search?q='+encodeURIComponent(builder(qd)),'_blank');
+}
+
+function searchAllUnsearched(){
+  const loc=getLocation();if(!loc)return;
+  const missing=DIRS.filter(d=>{const e=loc.dirs[d.id];return (!e||!e.url)&&DIR_SEARCH[d.id];});
+  if(!missing.length){alert('All directories already have URLs!');return;}
+  if(!confirm('Open '+missing.length+' Google search tabs for directories without URLs?\n\nAllow popups for this site if your browser blocks them.'))return;
+  const qd=getSearchQueryData(loc.id);if(!qd)return;
+  missing.forEach(d=>window.open('https://www.google.com/search?q='+encodeURIComponent(DIR_SEARCH[d.id](qd)),'_blank'));
+}
 
 function editUrl(locId,dirId){
   const loc=getLocation();if(!loc)return;
