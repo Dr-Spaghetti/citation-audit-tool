@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Citation Audit Tool</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#0f1117;--sidebar:#161b27;--card:#1e2435;--border:#2a3045;
+    --text:#e8eaf0;--muted:#8892a4;--accent:#4f8ef7;--accent2:#7c5af7;
+    --green:#22c55e;--yellow:#eab308;--orange:#f97316;--red:#ef4444;--blue:#3b82f6;--gray:#6b7280;
+  }
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;overflow:hidden}
+
+  /* SIDEBAR */
+  #sidebar{width:260px;min-width:260px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+  #sidebar-header{padding:20px 16px 12px;border-bottom:1px solid var(--border)}
+  #sidebar-header h1{font-size:15px;font-weight:700;color:var(--text);letter-spacing:.3px}
+  #sidebar-header p{font-size:11px;color:var(--muted);margin-top:3px}
+  #client-list{flex:1;overflow-y:auto;padding:8px}
+  .client-item{display:flex;align-items:center;gap:8px;padding:10px 10px;border-radius:8px;cursor:pointer;margin-bottom:2px;transition:background .15s}
+  .client-item:hover{background:var(--card)}
+  .client-item.active{background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25)}
+  .client-item.active .client-name{color:var(--accent)}
+  .client-avatar{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+  .client-info{flex:1;min-width:0}
+  .client-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .client-meta{font-size:11px;color:var(--muted);margin-top:1px}
+  #add-client-btn{margin:8px;padding:10px;background:rgba(79,142,247,.1);border:1px dashed rgba(79,142,247,.3);border-radius:8px;color:var(--accent);font-size:13px;cursor:pointer;text-align:center;transition:all .15s}
+  #add-client-btn:hover{background:rgba(79,142,247,.2)}
+
+  /* MAIN */
+  #main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  #topbar{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0}
+  #topbar h2{font-size:16px;font-weight:700;flex:1}
+  .btn{padding:7px 14px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:hover{background:#3d7ee8}
+  .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+  .btn-ghost:hover{background:var(--card);color:var(--text)}
+  .btn-danger{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+  .btn-danger:hover{background:rgba(239,68,68,.25)}
+  .btn-sm{padding:5px 10px;font-size:12px}
+
+  /* TABS */
+  #tab-bar{padding:0 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:4px;flex-shrink:0;overflow-x:auto}
+  .tab-btn{padding:12px 14px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border:none;background:transparent;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap}
+  .tab-btn:hover{color:var(--text)}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .tab-add{padding:12px 10px;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;border:none;background:transparent}
+  .tab-add:hover{color:var(--accent)}
+
+  /* CONTENT */
+  #content{flex:1;overflow-y:auto;padding:24px}
+
+  /* OVERVIEW */
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px}
+  .stat-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:4px}
+  .stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .stat-value{font-size:28px;font-weight:700}
+  .stat-value.green{color:var(--green)}
+  .stat-value.yellow{color:var(--yellow)}
+  .stat-value.orange{color:var(--orange)}
+  .stat-value.red{color:var(--red)}
+  .stat-value.gray{color:var(--gray)}
+
+  /* SECTION */
+  .section{background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;overflow:hidden}
+  .section-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+  .section-title{font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .badge{padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+  .badge-green{background:rgba(34,197,94,.15);color:var(--green)}
+  .badge-yellow{background:rgba(234,179,8,.15);color:var(--yellow)}
+  .badge-orange{background:rgba(249,115,22,.15);color:var(--orange)}
+  .badge-red{background:rgba(239,68,68,.15);color:var(--red)}
+  .badge-gray{background:rgba(107,114,128,.15);color:var(--gray)}
+  .badge-blue{background:rgba(59,130,246,.15);color:var(--blue)}
+
+  /* TABLE */
+  .dir-table{width:100%;border-collapse:collapse}
+  .dir-table th{padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.15)}
+  .dir-table td{padding:10px 14px;border-bottom:1px solid rgba(42,48,69,.5);vertical-align:middle;font-size:13px}
+  .dir-table tr:last-child td{border-bottom:none}
+  .dir-table tr:hover td{background:rgba(255,255,255,.02)}
+  .dir-num{color:var(--muted);font-size:11px;width:30px}
+  .dir-name{font-weight:500;min-width:200px}
+  .dir-cat{font-size:11px;color:var(--muted)}
+  .url-cell{max-width:280px}
+  .url-link{color:var(--accent);text-decoration:none;font-size:12px;word-break:break-all}
+  .url-link:hover{text-decoration:underline}
+  .url-input{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:5px;padding:5px 8px;color:var(--text);font-size:12px;width:100%;outline:none}
+  .url-input:focus{border-color:var(--accent)}
+  .notes-input{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:5px;padding:5px 8px;color:var(--text);font-size:12px;width:100%;min-width:140px;outline:none}
+  .notes-input:focus{border-color:var(--accent)}
+
+  /* STATUS */
+  .status-select{border:none;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;outline:none}
+  .s-live{background:rgba(34,197,94,.15);color:var(--green)}
+  .s-attention{background:rgba(234,179,8,.15);color:var(--yellow)}
+  .s-notfound{background:rgba(239,68,68,.15);color:var(--red)}
+  .s-progress{background:rgba(59,130,246,.15);color:var(--blue)}
+  .s-notstarted{background:rgba(107,114,128,.15);color:var(--gray)}
+  .s-notverifiable{background:rgba(249,115,22,.15);color:var(--orange)}
+
+  /* NAP BLOCK */
+  .nap-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:16px}
+  .nap-field label{font-size:11px;color:var(--muted);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+  .nap-input{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;width:100%;outline:none}
+  .nap-input:focus{border-color:var(--accent)}
+
+  /* FILTER BAR */
+  .filter-bar{padding:12px 16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--border)}
+  .filter-input{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:12px;outline:none;min-width:160px}
+  .filter-input:focus{border-color:var(--accent)}
+  .filter-select{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:12px;outline:none;cursor:pointer}
+
+  /* FIX NOW */
+  .fix-item{padding:14px 16px;border-bottom:1px solid rgba(42,48,69,.5);display:grid;grid-template-columns:24px 1fr auto;gap:12px;align-items:start}
+  .fix-item:last-child{border-bottom:none}
+  .fix-priority{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:1px}
+  .fix-p1{background:rgba(239,68,68,.2);color:var(--red)}
+  .fix-p2{background:rgba(234,179,8,.2);color:var(--yellow)}
+  .fix-p3{background:rgba(107,114,128,.2);color:var(--gray)}
+  .fix-body{}
+  .fix-dir{font-size:13px;font-weight:600}
+  .fix-loc{font-size:11px;color:var(--muted);margin-top:2px}
+  .fix-note{font-size:12px;color:var(--orange);margin-top:4px}
+
+  /* EMPTY STATE */
+  .empty{text-align:center;padding:60px 20px;color:var(--muted)}
+  .empty h3{font-size:16px;font-weight:600;margin-bottom:8px;color:var(--text)}
+  .empty p{font-size:13px;line-height:1.6}
+
+  /* MODAL */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px)}
+  .modal{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;width:480px;max-width:90vw;max-height:85vh;overflow-y:auto}
+  .modal h3{font-size:16px;font-weight:700;margin-bottom:4px}
+  .modal p{font-size:13px;color:var(--muted);margin-bottom:20px}
+  .modal-field{margin-bottom:14px}
+  .modal-field label{font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
+  .modal-input{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:7px;padding:9px 12px;color:var(--text);font-size:13px;width:100%;outline:none}
+  .modal-input:focus{border-color:var(--accent)}
+  .modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+
+  /* NAP warning */
+  .nap-mismatch{background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.2);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--yellow);margin:0 16px 16px;display:flex;gap:8px;align-items:flex-start}
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar{width:6px;height:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+  ::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+
+  /* export button area */
+  .toolbar{display:flex;gap:8px;align-items:center}
+
+  /* no-client state */
+  #no-client{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;color:var(--muted)}
+  #no-client h2{font-size:22px;font-weight:700;color:var(--text)}
+  #no-client p{font-size:14px;text-align:center;max-width:320px;line-height:1.6}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div id="sidebar-header">
+    <h1>📋 Citation Audit</h1>
+    <p>Law Firm Directory Manager</p>
+  </div>
+  <div id="client-list"></div>
+  <div id="add-client-btn" onclick="openAddClientModal()">+ Add New Client</div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="no-client">
+    <div style="font-size:48px">⚖️</div>
+    <h2>Citation Audit Tool</h2>
+    <p>Add a client from the sidebar to start tracking citations across all 36 directories.</p>
+    <button class="btn btn-primary" onclick="openAddClientModal()">+ Add First Client</button>
+  </div>
+
+  <div id="client-workspace" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+    <div id="topbar">
+      <div>
+        <h2 id="ws-title">Client Name</h2>
+        <div id="ws-subtitle" style="font-size:12px;color:var(--muted);margin-top:2px"></div>
+      </div>
+      <div class="toolbar">
+        <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ Export CSV</button>
+        <button class="btn btn-ghost btn-sm" onclick="openEditClientModal()">✏️ Edit Client</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteClient()">🗑 Delete</button>
+      </div>
+    </div>
+
+    <div id="tab-bar">
+      <button class="tab-btn active" data-tab="overview" onclick="switchMainTab(this,'overview')">Overview</button>
+      <button class="tab-btn" data-tab="fix" onclick="switchMainTab(this,'fix')">🔴 Fix These Now</button>
+      <span style="flex:1"></span>
+      <span style="padding:12px 6px;font-size:11px;color:var(--muted);align-self:center">Locations:</span>
+      <div id="location-tabs" style="display:flex;align-items:center;gap:0"></div>
+      <button class="tab-add" onclick="openAddLocationModal()" title="Add location">＋</button>
+    </div>
+
+    <div id="content">
+      <!-- OVERVIEW TAB -->
+      <div id="tab-overview">
+        <div class="stats-grid" id="stats-grid"></div>
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">📍 Locations</div>
+            <button class="btn btn-ghost btn-sm" onclick="openAddLocationModal()">+ Add Location</button>
+          </div>
+          <div id="locations-summary"></div>
+        </div>
+        <div class="section">
+          <div class="section-header"><div class="section-title">⚠️ Top Issues</div></div>
+          <div id="overview-issues"></div>
+        </div>
+      </div>
+
+      <!-- FIX THESE NOW TAB -->
+      <div id="tab-fix" style="display:none">
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">🔴 Fix These Now <span id="fix-count-badge" class="badge badge-red"></span></div>
+            <div style="font-size:12px;color:var(--muted)">Sorted by priority: NAP mismatches → missing critical profiles → gaps</div>
+          </div>
+          <div id="fix-list"></div>
+        </div>
+      </div>
+
+      <!-- LOCATION TABS (dynamic) -->
+      <div id="location-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div id="modal" class="modal-overlay" style="display:none" onclick="closeModalOnBg(event)">
+  <div class="modal" id="modal-box"></div>
+</div>
+
+<script>
+// ===== CONSTANTS =====
+const DIRS = [
+  // Core Platforms
+  {id:'gbp',name:'Google Business Profile',cat:'Core Platform'},
+  {id:'apple',name:'Apple Maps / Apple Business Connect',cat:'Core Platform'},
+  {id:'bing',name:'Bing Places / Maps',cat:'Core Platform'},
+  {id:'fb',name:'Facebook Profile for Firm',cat:'Core Platform'},
+  {id:'li',name:'LinkedIn',cat:'Core Platform'},
+  {id:'yelp',name:'Yelp',cat:'Core Platform'},
+  // Legal Directories
+  {id:'fl_firm',name:'FindLaw – Firm Profile',cat:'Legal Directory'},
+  {id:'avvo_firm',name:'Avvo – Firm Profile',cat:'Legal Directory'},
+  {id:'avvo_atty',name:'Avvo – Attorney Profile (Owner)',cat:'Legal Directory'},
+  {id:'mart_firm',name:'Martindale – Firm Profile',cat:'Legal Directory'},
+  {id:'mart_atty',name:'Martindale – Attorney Profile (Owner)',cat:'Legal Directory'},
+  {id:'justia_firm',name:'Justia – Firm Profile',cat:'Legal Directory'},
+  {id:'justia_atty',name:'Justia – Attorney Profile (Owner)',cat:'Legal Directory'},
+  {id:'law_firm',name:'Lawyers.com – Firm Profile',cat:'Legal Directory'},
+  {id:'law_atty',name:'Lawyers.com – Attorney Profile (Owner)',cat:'Legal Directory'},
+  {id:'sl_firm',name:'Super Lawyers – Firm Profile',cat:'Legal Directory'},
+  {id:'sl_atty',name:'Super Lawyers – Attorney Profile (Owner)',cat:'Legal Directory'},
+  {id:'bl_atty',name:'Best Lawyers – Attorney Profile (Owner)',cat:'Legal Directory'},
+  {id:'nolo_firm',name:'Nolo – Firm Profile',cat:'Legal Directory'},
+  {id:'nolo_atty',name:'Nolo – Attorney Profile (Owner)',cat:'Legal Directory'},
+  {id:'hg_firm',name:'HG.org – Firm Profile',cat:'Legal Directory'},
+  {id:'hg_atty',name:'HG.org – Attorney Profile (Owner)',cat:'Legal Directory'},
+  {id:'lawinfo',name:'LawInfo – Firm Profile',cat:'Legal Directory'},
+  // General Directories
+  {id:'bbb',name:'Better Business Bureau (BBB)',cat:'General Directory'},
+  {id:'statebar',name:'State Bar Listing',cat:'General Directory'},
+  {id:'yp',name:'Yellow Pages (yellowpages.com)',cat:'General Directory'},
+  {id:'chambers',name:'Chambers.com',cat:'General Directory'},
+  {id:'mapquest',name:'MapQuest',cat:'General Directory'},
+  // Community & Social
+  {id:'nextdoor',name:'Nextdoor',cat:'Community / Social'},
+  {id:'alignable',name:'Alignable',cat:'Community / Social'},
+  // Additional
+  {id:'wiki',name:'Wikipedia (Firm Page)',cat:'Entity Authority'},
+  {id:'waze',name:'Waze',cat:'Navigation'},
+  {id:'dataaxle',name:'Data Axle / Infogroup',cat:'Data Aggregator'},
+  {id:'neustar',name:'Neustar Localeze / TransUnion',cat:'Data Aggregator'},
+  {id:'foursquare',name:'Foursquare / Factual',cat:'Data Aggregator'},
+  {id:'ypthryv',name:'YP Network / Thryv',cat:'Data Aggregator'},
+];
+
+const STATUSES = [
+  {val:'not_started',label:'Not Started',cls:'s-notstarted'},
+  {val:'live',label:'Live & Updated',cls:'s-live'},
+  {val:'attention',label:'Needs Attention',cls:'s-attention'},
+  {val:'not_found',label:'No Profile Found',cls:'s-notfound'},
+  {val:'in_progress',label:'In Progress',cls:'s-progress'},
+  {val:'not_verifiable',label:'Not Publicly Verifiable',cls:'s-notverifiable'},
+];
+
+const STATUS_MAP = Object.fromEntries(STATUSES.map(s=>[s.val,s]));
+const HIGH_PRIORITY_DIRS = ['gbp','yelp','bbb','fb','li','avvo_atty','mart_atty','justia_atty','fl_firm'];
+
+// ===== STATE =====
+let state = JSON.parse(localStorage.getItem('citation_audit_v2') || '{"clients":[]}');
+let activeClientId = null;
+let activeLocationId = null;
+let activeMainTab = 'overview';
+
+function save(){localStorage.setItem('citation_audit_v2',JSON.stringify(state))}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+
+// ===== CLIENT MANAGEMENT =====
+function openAddClientModal(){
+  showModal(`
+    <h3>Add New Client</h3>
+    <p>Enter the law firm's information to start tracking citations.</p>
+    <div class="modal-field"><label>Firm / Brand Name *</label><input class="modal-input" id="m-name" placeholder="e.g. KaplunMarx Accident & Injury Lawyers"></div>
+    <div class="modal-field"><label>Owner / Attorney Name *</label><input class="modal-input" id="m-owner" placeholder="e.g. Ted Kaplun & Jonathan Marx"></div>
+    <div class="modal-field"><label>Website URL</label><input class="modal-input" id="m-web" placeholder="https://kaplunmarx.com"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="addClient()">Add Client</button>
+    </div>
+  `);
+}
+
+function addClient(){
+  const name=v('m-name'),owner=v('m-owner'),web=v('m-web');
+  if(!name||!owner){alert('Firm name and owner are required.');return;}
+  const client={id:uid(),name,owner,website:web,locations:[]};
+  state.clients.push(client);save();
+  closeModal();renderSidebar();selectClient(client.id);
+}
+
+function openEditClientModal(){
+  const c=getClient();if(!c)return;
+  showModal(`
+    <h3>Edit Client</h3>
+    <p>Update the firm's information.</p>
+    <div class="modal-field"><label>Firm / Brand Name *</label><input class="modal-input" id="m-name" value="${esc(c.name)}"></div>
+    <div class="modal-field"><label>Owner / Attorney Name *</label><input class="modal-input" id="m-owner" value="${esc(c.owner)}"></div>
+    <div class="modal-field"><label>Website URL</label><input class="modal-input" id="m-web" value="${esc(c.website||'')}"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="editClient()">Save</button>
+    </div>
+  `);
+}
+
+function editClient(){
+  const c=getClient();if(!c)return;
+  c.name=v('m-name');c.owner=v('m-owner');c.website=v('m-web');
+  save();closeModal();renderSidebar();renderWorkspace();
+}
+
+function deleteClient(){
+  const c=getClient();if(!c)return;
+  if(!confirm(`Delete "${c.name}" and all its data? This cannot be undone.`))return;
+  state.clients=state.clients.filter(x=>x.id!==activeClientId);
+  activeClientId=null;save();renderSidebar();
+  document.getElementById('no-client').style.display='flex';
+  document.getElementById('client-workspace').style.display='none';
+}
+
+// ===== LOCATION MANAGEMENT =====
+function openAddLocationModal(){
+  const c=getClient();if(!c)return;
+  showModal(`
+    <h3>Add Location</h3>
+    <p>Enter the NAP (Name, Address, Phone) for this office.</p>
+    <div class="modal-field"><label>Location Label *</label><input class="modal-input" id="m-label" placeholder="e.g. Philadelphia or Bala Cynwyd"></div>
+    <div class="modal-field"><label>GBP / Brand Name</label><input class="modal-input" id="m-gbpname" placeholder="Name shown on Google (e.g. Philly Injury Attorneys)"></div>
+    <div class="modal-field"><label>Street Address *</label><input class="modal-input" id="m-addr" placeholder="115 S 8th St Suite 5"></div>
+    <div class="modal-field"><label>City, State, ZIP *</label><input class="modal-input" id="m-city" placeholder="Philadelphia, PA 19106"></div>
+    <div class="modal-field"><label>Primary Phone *</label><input class="modal-input" id="m-phone" placeholder="(215) 939-4895"></div>
+    <div class="modal-field"><label>Secondary Phone</label><input class="modal-input" id="m-phone2" placeholder="(optional)"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="addLocation()">Add Location</button>
+    </div>
+  `);
+}
+
+function addLocation(){
+  const c=getClient();if(!c)return;
+  const label=v('m-label'),addr=v('m-addr'),city=v('m-city'),phone=v('m-phone');
+  if(!label||!addr||!city||!phone){alert('Label, address, city, and phone are required.');return;}
+  const loc={
+    id:uid(),label,gbpname:v('m-gbpname'),
+    address:addr,city,phone,phone2:v('m-phone2'),
+    dirs:{}
+  };
+  DIRS.forEach(d=>{loc.dirs[d.id]={status:'not_started',url:'',notes:''}});
+  c.locations.push(loc);save();closeModal();
+  renderWorkspace();
+  switchLocationTab(loc.id);
+}
+
+function openEditLocationModal(){
+  const loc=getLocation();if(!loc)return;
+  showModal(`
+    <h3>Edit Location</h3>
+    <div class="modal-field"><label>Location Label *</label><input class="modal-input" id="m-label" value="${esc(loc.label)}"></div>
+    <div class="modal-field"><label>GBP / Brand Name</label><input class="modal-input" id="m-gbpname" value="${esc(loc.gbpname||'')}"></div>
+    <div class="modal-field"><label>Street Address *</label><input class="modal-input" id="m-addr" value="${esc(loc.address)}"></div>
+    <div class="modal-field"><label>City, State, ZIP *</label><input class="modal-input" id="m-city" value="${esc(loc.city)}"></div>
+    <div class="modal-field"><label>Primary Phone *</label><input class="modal-input" id="m-phone" value="${esc(loc.phone)}"></div>
+    <div class="modal-field"><label>Secondary Phone</label><input class="modal-input" id="m-phone2" value="${esc(loc.phone2||'')}"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteLocation()">Delete Location</button>
+      <button class="btn btn-primary" onclick="editLocation()">Save</button>
+    </div>
+  `);
+}
+
+function editLocation(){
+  const loc=getLocation();if(!loc)return;
+  loc.label=v('m-label');loc.gbpname=v('m-gbpname');
+  loc.address=v('m-addr');loc.city=v('m-city');
+  loc.phone=v('m-phone');loc.phone2=v('m-phone2');
+  save();closeModal();renderWorkspace();switchLocationTab(loc.id);
+}
+
+function deleteLocation(){
+  const c=getClient(),loc=getLocation();if(!c||!loc)return;
+  if(!confirm(`Delete "${loc.label}" and all its citation data?`))return;
+  c.locations=c.locations.filter(x=>x.id!==activeLocationId);
+  activeLocationId=c.locations[0]?.id||null;
+  save();closeModal();renderWorkspace();
+}
+
+// ===== RENDER =====
+function renderSidebar(){
+  const list=document.getElementById('client-list');
+  if(state.clients.length===0){list.innerHTML='<div style="padding:20px 12px;font-size:12px;color:var(--muted);text-align:center">No clients yet.<br>Add one below.</div>';return;}
+  list.innerHTML=state.clients.map(c=>{
+    const totalDirs=c.locations.length*DIRS.length;
+    const live=c.locations.reduce((a,l)=>a+Object.values(l.dirs).filter(d=>d.status==='live').length,0);
+    const issues=c.locations.reduce((a,l)=>a+Object.values(l.dirs).filter(d=>d.status==='attention'||d.status==='not_found').length,0);
+    const initials=c.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    return `<div class="client-item${c.id===activeClientId?' active':''}" onclick="selectClient('${c.id}')">
+      <div class="client-avatar">${initials}</div>
+      <div class="client-info">
+        <div class="client-name">${esc(c.name)}</div>
+        <div class="client-meta">${c.locations.length} location${c.locations.length!==1?'s':''} · ${live} live${issues?` · <span style="color:var(--orange)">${issues} issues</span>`:''}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectClient(id){
+  activeClientId=id;
+  const c=getClient();
+  activeLocationId=c?.locations[0]?.id||null;
+  activeMainTab='overview';
+  renderSidebar();
+  renderWorkspace();
+}
+
+function renderWorkspace(){
+  const c=getClient();
+  if(!c){
+    document.getElementById('no-client').style.display='flex';
+    document.getElementById('client-workspace').style.display='none';
+    return;
+  }
+  document.getElementById('no-client').style.display='none';
+  document.getElementById('client-workspace').style.display='flex';
+
+  document.getElementById('ws-title').textContent=c.name;
+  document.getElementById('ws-subtitle').textContent=`Owner: ${c.owner}${c.website?' · '+c.website:''}`;
+
+  // Location tabs
+  const ltabs=document.getElementById('location-tabs');
+  ltabs.innerHTML=c.locations.map(l=>`
+    <button class="tab-btn${l.id===activeLocationId?' active':''}" onclick="switchLocationTab('${l.id}')">${esc(l.label)}</button>
+  `).join('');
+
+  // Main tab active state
+  document.querySelectorAll('#tab-bar .tab-btn[data-tab]').forEach(b=>{
+    b.classList.toggle('active',b.dataset.tab===activeMainTab);
+  });
+
+  renderOverview();
+  renderFixList();
+  renderLocationContent();
+
+  // Show correct panels
+  document.getElementById('tab-overview').style.display=activeMainTab==='overview'?'block':'none';
+  document.getElementById('tab-fix').style.display=activeMainTab==='fix'?'block':'none';
+  document.getElementById('location-content').style.display=
+    activeMainTab!=='overview'&&activeMainTab!=='fix'?'block':'none';
+}
+
+function switchMainTab(btn,tab){
+  activeMainTab=tab;
+  document.querySelectorAll('#tab-bar .tab-btn[data-tab]').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-overview').style.display=tab==='overview'?'block':'none';
+  document.getElementById('tab-fix').style.display=tab==='fix'?'block':'none';
+  document.getElementById('location-content').style.display=tab!=='overview'&&tab!=='fix'?'block':'none';
+  if(tab!=='overview'&&tab!=='fix') renderLocationContent();
+}
+
+function switchLocationTab(locId){
+  activeLocationId=locId;activeMainTab='location';
+  document.querySelectorAll('#tab-bar .tab-btn[data-tab]').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#location-tabs .tab-btn').forEach(b=>{
+    b.classList.toggle('active',b.textContent===getLocation()?.label);
+  });
+  document.getElementById('tab-overview').style.display='none';
+  document.getElementById('tab-fix').style.display='none';
+  document.getElementById('location-content').style.display='block';
+  renderLocationContent();
+}
+
+function renderOverview(){
+  const c=getClient();if(!c)return;
+  // Stats
+  const all=c.locations.flatMap(l=>Object.values(l.dirs));
+  const live=all.filter(d=>d.status==='live').length;
+  const attention=all.filter(d=>d.status==='attention').length;
+  const notfound=all.filter(d=>d.status==='not_found').length;
+  const inprog=all.filter(d=>d.status==='in_progress').length;
+  const notstarted=all.filter(d=>d.status==='not_started').length;
+  document.getElementById('stats-grid').innerHTML=`
+    <div class="stat-card"><div class="stat-label">Total Rows</div><div class="stat-value" style="color:var(--text)">${all.length}</div></div>
+    <div class="stat-card"><div class="stat-label">Live & Updated</div><div class="stat-value green">${live}</div></div>
+    <div class="stat-card"><div class="stat-label">Needs Attention</div><div class="stat-value yellow">${attention}</div></div>
+    <div class="stat-card"><div class="stat-label">No Profile Found</div><div class="stat-value red">${notfound}</div></div>
+    <div class="stat-card"><div class="stat-label">In Progress</div><div class="stat-value" style="color:var(--blue)">${inprog}</div></div>
+    <div class="stat-card"><div class="stat-label">Not Started</div><div class="stat-value gray">${notstarted}</div></div>
+  `;
+  // Locations summary
+  document.getElementById('locations-summary').innerHTML=c.locations.length===0
+    ?'<div class="empty"><h3>No locations yet</h3><p>Add a location to start tracking citations.</p><br><button class="btn btn-primary" onclick="openAddLocationModal()">+ Add Location</button></div>'
+    :c.locations.map(l=>{
+      const dirs=Object.values(l.dirs);
+      const lv=dirs.filter(d=>d.status==='live').length;
+      const at=dirs.filter(d=>d.status==='attention').length;
+      const nf=dirs.filter(d=>d.status==='not_found').length;
+      const ns=dirs.filter(d=>d.status==='not_started').length;
+      const pct=Math.round(lv/DIRS.length*100);
+      return `<div style="padding:14px 16px;border-bottom:1px solid rgba(42,48,69,.5);display:flex;align-items:center;gap:16px">
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600">${esc(l.label)}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">${esc(l.address)}, ${esc(l.city)} · ${esc(l.phone)}</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="badge badge-green">${lv} live</span>
+          ${at?`<span class="badge badge-yellow">${at} attention</span>`:''}
+          ${nf?`<span class="badge badge-red">${nf} not found</span>`:''}
+          ${ns?`<span class="badge badge-gray">${ns} not started</span>`:''}
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick="switchLocationTab('${l.id}')">View →</button>
+          <button class="btn btn-ghost btn-sm" onclick="activeLocationId='${l.id}';openEditLocationModal()">✏️</button>
+        </div>
+      </div>`;
+    }).join('');
+
+  // Top issues
+  const issues=c.locations.flatMap(l=>
+    HIGH_PRIORITY_DIRS.map(did=>{
+      const dir=DIRS.find(d=>d.id===did);
+      const entry=l.dirs[did];
+      if(entry&&(entry.status==='attention'||entry.status==='not_found'))
+        return{loc:l.label,dir:dir.name,status:entry.status,note:entry.notes};
+      return null;
+    }).filter(Boolean)
+  ).slice(0,8);
+
+  document.getElementById('overview-issues').innerHTML=issues.length===0
+    ?'<div style="padding:20px 16px;font-size:13px;color:var(--green)">✅ No high-priority issues found in core directories.</div>'
+    :issues.map(i=>`<div class="fix-item">
+      <div class="fix-priority ${i.status==='attention'?'fix-p2':'fix-p1'}">${i.status==='attention'?'!':'✗'}</div>
+      <div class="fix-body">
+        <div class="fix-dir">${esc(i.dir)}</div>
+        <div class="fix-loc">${esc(i.loc)}</div>
+        ${i.note?`<div class="fix-note">${esc(i.note)}</div>`:''}
+      </div>
+    </div>`).join('');
+}
+
+function renderFixList(){
+  const c=getClient();if(!c)return;
+  const issues=[];
+  c.locations.forEach(l=>{
+    DIRS.forEach(dir=>{
+      const entry=l.dirs[dir.id];
+      if(!entry)return;
+      const isHigh=HIGH_PRIORITY_DIRS.includes(dir.id);
+      const priority=entry.status==='attention'&&isHigh?1:entry.status==='not_found'&&isHigh?1:entry.status==='attention'?2:entry.status==='not_found'?2:null;
+      if(priority) issues.push({priority,loc:l.label,dir:dir.name,status:entry.status,note:entry.notes,url:entry.url});
+    });
+  });
+  issues.sort((a,b)=>a.priority-b.priority);
+  document.getElementById('fix-count-badge').textContent=issues.length;
+  document.getElementById('fix-list').innerHTML=issues.length===0
+    ?'<div style="padding:24px 16px;font-size:13px;color:var(--green);text-align:center">✅ No issues requiring immediate attention.</div>'
+    :issues.map((i,idx)=>`<div class="fix-item">
+      <div class="fix-priority fix-p${i.priority}">${i.priority===1?'🔴':'⚠️'}</div>
+      <div class="fix-body">
+        <div class="fix-dir">${esc(i.dir)}</div>
+        <div class="fix-loc">${esc(i.loc)} · <span class="${STATUS_MAP[i.status]?.cls||'s-notstarted'}" style="border-radius:12px;padding:2px 8px;font-size:11px;font-weight:600">${STATUS_MAP[i.status]?.label||i.status}</span></div>
+        ${i.note?`<div class="fix-note">${esc(i.note)}</div>`:''}
+        ${i.url?`<div style="margin-top:4px"><a href="${esc(i.url)}" target="_blank" class="url-link">↗ ${esc(i.url.slice(0,60))}${i.url.length>60?'...':''}</a></div>`:''}
+      </div>
+    </div>`).join('');
+}
+
+function renderLocationContent(){
+  const loc=getLocation();
+  const el=document.getElementById('location-content');
+  if(!loc){el.innerHTML='<div class="empty"><h3>No location selected</h3></div>';return;}
+
+  // Group dirs by category
+  const cats=[...new Set(DIRS.map(d=>d.cat))];
+
+  el.innerHTML=`
+    <div class="section" style="margin-bottom:16px">
+      <div class="section-header">
+        <div class="section-title">📍 ${esc(loc.label)} — NAP</div>
+        <button class="btn btn-ghost btn-sm" onclick="openEditLocationModal()">✏️ Edit</button>
+      </div>
+      <div class="nap-grid">
+        <div class="nap-field"><label>GBP / Display Name</label><div style="padding:8px 10px;font-size:13px;color:var(--text)">${esc(loc.gbpname||'—')}</div></div>
+        <div class="nap-field"><label>Address</label><div style="padding:8px 10px;font-size:13px;color:var(--text)">${esc(loc.address)}, ${esc(loc.city)}</div></div>
+        <div class="nap-field"><label>Phone</label><div style="padding:8px 10px;font-size:13px;color:var(--text)">${esc(loc.phone)}${loc.phone2?' · '+esc(loc.phone2):''}</div></div>
+      </div>
+    </div>
+    <div class="filter-bar">
+      <input class="filter-input" id="dir-search" placeholder="🔍 Search directories..." oninput="filterDirs()">
+      <select class="filter-select" id="dir-filter-status" onchange="filterDirs()">
+        <option value="">All Statuses</option>
+        ${STATUSES.map(s=>`<option value="${s.val}">${s.label}</option>`).join('')}
+      </select>
+      <select class="filter-select" id="dir-filter-cat" onchange="filterDirs()">
+        <option value="">All Categories</option>
+        ${cats.map(c=>`<option value="${c}">${c}</option>`).join('')}
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="markAllFound()">✅ Mark all live</button>
+    </div>
+    <div id="dir-sections">
+      ${cats.map(cat=>{
+        const catDirs=DIRS.filter(d=>d.cat===cat);
+        return `<div class="section dir-cat-section" data-cat="${cat}" style="margin-bottom:12px">
+          <div class="section-header">
+            <div class="section-title">${cat} <span class="badge badge-gray">${catDirs.length}</span></div>
+          </div>
+          <table class="dir-table">
+            <thead><tr>
+              <th style="width:30px">#</th>
+              <th>Directory</th>
+              <th style="width:150px">Status</th>
+              <th>Profile URL</th>
+              <th>Notes</th>
+            </tr></thead>
+            <tbody>
+              ${catDirs.map((d,i)=>{
+                const entry=loc.dirs[d.id]||{status:'not_started',url:'',notes:''};
+                const sinfo=STATUS_MAP[entry.status]||STATUS_MAP['not_started'];
+                return `<tr class="dir-row" data-dirid="${d.id}" data-cat="${d.cat}" data-name="${d.name.toLowerCase()}">
+                  <td class="dir-num">${DIRS.indexOf(d)+1}</td>
+                  <td class="dir-name">${esc(d.name)}</td>
+                  <td>
+                    <select class="status-select ${sinfo.cls}" onchange="updateDir('${loc.id}','${d.id}','status',this.value);this.className='status-select '+getStatusCls(this.value)">
+                      ${STATUSES.map(s=>`<option value="${s.val}"${entry.status===s.val?' selected':''}>${s.label}</option>`).join('')}
+                    </select>
+                  </td>
+                  <td class="url-cell">
+                    ${entry.url
+                      ?`<div style="display:flex;gap:4px;align-items:center">
+                          <a href="${esc(entry.url)}" target="_blank" class="url-link" title="${esc(entry.url)}">${esc(entry.url.slice(0,45))}${entry.url.length>45?'…':''}</a>
+                          <button onclick="editUrl('${loc.id}','${d.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px" title="Edit URL">✏️</button>
+                        </div>`
+                      :`<button class="btn btn-ghost btn-sm" onclick="editUrl('${loc.id}','${d.id}')">+ Add URL</button>`
+                    }
+                  </td>
+                  <td><input class="notes-input" value="${esc(entry.notes||'')}" placeholder="Notes…" onchange="updateDir('${loc.id}','${d.id}','notes',this.value)" onblur="updateDir('${loc.id}','${d.id}','notes',this.value)"></td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+function filterDirs(){
+  const search=(document.getElementById('dir-search')?.value||'').toLowerCase();
+  const status=document.getElementById('dir-filter-status')?.value||'';
+  const cat=document.getElementById('dir-filter-cat')?.value||'';
+  const loc=getLocation();if(!loc)return;
+  document.querySelectorAll('.dir-row').forEach(row=>{
+    const name=row.dataset.name||'';
+    const rowCat=row.dataset.cat||'';
+    const dirId=row.dataset.dirid||'';
+    const entry=loc.dirs[dirId]||{};
+    const show=(!search||name.includes(search))&&(!status||entry.status===status)&&(!cat||rowCat===cat);
+    row.style.display=show?'':'none';
+  });
+  // Hide empty category sections
+  document.querySelectorAll('.dir-cat-section').forEach(sec=>{
+    const visible=Array.from(sec.querySelectorAll('.dir-row')).some(r=>r.style.display!=='none');
+    sec.style.display=visible?'':'none';
+  });
+}
+
+function updateDir(locId,dirId,field,val){
+  const loc=getLocation();if(!loc||loc.id!==locId)return;
+  if(!loc.dirs[dirId])loc.dirs[dirId]={status:'not_started',url:'',notes:''};
+  loc.dirs[dirId][field]=val;
+  save();renderSidebar();
+  if(activeMainTab==='overview')renderOverview();
+  if(activeMainTab==='fix')renderFixList();
+}
+
+function getStatusCls(val){return STATUS_MAP[val]?.cls||'s-notstarted';}
+
+function editUrl(locId,dirId){
+  const loc=getLocation();if(!loc)return;
+  const entry=loc.dirs[dirId]||{};
+  showModal(`
+    <h3>Edit URL</h3>
+    <p>Enter the direct profile URL for this directory entry.</p>
+    <div class="modal-field"><label>Profile URL</label><input class="modal-input" id="m-url" value="${esc(entry.url||'')}" placeholder="https://..."></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveUrl('${locId}','${dirId}')">Save URL</button>
+    </div>
+  `);
+  setTimeout(()=>document.getElementById('m-url')?.focus(),100);
+}
+
+function saveUrl(locId,dirId){
+  const url=v('m-url').trim();
+  updateDir(locId,dirId,'url',url);
+  closeModal();renderLocationContent();
+}
+
+function markAllFound(){
+  if(!confirm('Mark all directories in this location as Live & Updated?'))return;
+  const loc=getLocation();if(!loc)return;
+  DIRS.forEach(d=>{if(loc.dirs[d.id])loc.dirs[d.id].status='live';});
+  save();renderWorkspace();
+}
+
+// ===== OVERVIEW =====
+function renderOverview_(){renderOverview();}
+
+// ===== EXPORT =====
+function exportCSV(){
+  const c=getClient();if(!c){alert('No client selected.');return;}
+  let csv='Client,Location,Address,Phone,Directory,Category,Status,URL,Notes\n';
+  c.locations.forEach(l=>{
+    DIRS.forEach(d=>{
+      const e=l.dirs[d.id]||{};
+      csv+=`"${esc2(c.name)}","${esc2(l.label)}","${esc2(l.address+', '+l.city)}","${esc2(l.phone)}","${esc2(d.name)}","${esc2(d.cat)}","${esc2(e.status||'')}","${esc2(e.url||'')}","${esc2(e.notes||'')}"\n`;
+    });
+  });
+  const blob=new Blob([csv],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;
+  a.download=`citation-audit-${c.name.replace(/[^a-z0-9]/gi,'-').toLowerCase()}.csv`;
+  a.click();URL.revokeObjectURL(url);
+}
+
+// ===== MODAL =====
+function showModal(html){
+  document.getElementById('modal-box').innerHTML=html;
+  document.getElementById('modal').style.display='flex';
+  setTimeout(()=>{const fi=document.getElementById('modal-box').querySelector('input');if(fi)fi.focus();},100);
+}
+function closeModal(){document.getElementById('modal').style.display='none';}
+function closeModalOnBg(e){if(e.target===document.getElementById('modal'))closeModal();}
+
+// ===== HELPERS =====
+function getClient(){return state.clients.find(c=>c.id===activeClientId)||null;}
+function getLocation(){const c=getClient();return c?.locations.find(l=>l.id===activeLocationId)||null;}
+function v(id){return document.getElementById(id)?.value?.trim()||'';}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function esc2(s){return String(s||'').replace(/"/g,'""');}
+
+// ===== KEYBOARD =====
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+// ===== INIT =====
+renderSidebar();
+if(state.clients.length>0)selectClient(state.clients[0].id);
+</script>
+</body>
+</html>
