@@ -301,44 +301,45 @@ const STATUSES = [
 const STATUS_MAP = Object.fromEntries(STATUSES.map(s=>[s.val,s]));
 const HIGH_PRIORITY_DIRS = ['gbp','yelp','bbb','fb','li','avvo_atty','mart_atty','justia_atty','fl_firm'];
 
-// Search query builders per directory — {name, city, state, owner}
+// Search query builders per directory — receives {name, address, city, state, owner}
+// Each query uses the real NAP data from that specific location record
 const DIR_SEARCH = {
-  gbp:        ({name,city})        => `"${name}" "${city}" Google Business Profile`,
-  apple:      ({name,city})        => `"${name}" "${city}" Apple Maps business`,
-  bing:       ({name,city})        => `"${name}" "${city}" site:bingplaces.com`,
-  fb:         ({name,city})        => `"${name}" "${city}" site:facebook.com`,
-  li:         ({name})             => `"${name}" site:linkedin.com/company`,
-  yelp:       ({name,city})        => `"${name}" "${city}" site:yelp.com`,
-  fl_firm:    ({name,city})        => `"${name}" "${city}" site:findlaw.com`,
-  avvo_firm:  ({name,city})        => `"${name}" "${city}" site:avvo.com`,
-  avvo_atty:  ({owner})            => `"${owner}" site:avvo.com attorney`,
-  mart_firm:  ({name,city})        => `"${name}" "${city}" site:martindale.com`,
-  mart_atty:  ({owner})            => `"${owner}" site:martindale.com`,
-  justia_firm:({name,city})        => `"${name}" "${city}" site:justia.com`,
-  justia_atty:({owner})            => `"${owner}" site:justia.com attorney`,
-  law_firm:   ({name,city})        => `"${name}" "${city}" site:lawyers.com`,
-  law_atty:   ({owner})            => `"${owner}" site:lawyers.com`,
-  sl_firm:    ({name,city})        => `"${name}" "${city}" site:superlawyers.com`,
-  sl_atty:    ({owner})            => `"${owner}" site:superlawyers.com`,
-  bl_atty:    ({owner})            => `"${owner}" site:bestlawyers.com`,
-  nolo_firm:  ({name,city})        => `"${name}" "${city}" site:nolo.com`,
-  nolo_atty:  ({owner})            => `"${owner}" site:nolo.com`,
-  hg_firm:    ({name,city})        => `"${name}" "${city}" site:hg.org`,
-  hg_atty:    ({owner})            => `"${owner}" site:hg.org`,
-  lawinfo:    ({name,city})        => `"${name}" "${city}" site:lawinfo.com`,
-  bbb:        ({name,city})        => `"${name}" "${city}" site:bbb.org`,
-  statebar:   ({owner,state})      => `"${owner}" "${state}" state bar attorney profile`,
-  yp:         ({name,city})        => `"${name}" "${city}" site:yellowpages.com`,
-  chambers:   ({name})             => `"${name}" site:chambers.com`,
-  mapquest:   ({name,city})        => `"${name}" "${city}" site:mapquest.com`,
-  nextdoor:   ({name,city})        => `"${name}" "${city}" site:nextdoor.com business`,
-  alignable:  ({name,city})        => `"${name}" "${city}" site:alignable.com`,
-  wiki:       ({name})             => `"${name}" law firm site:wikipedia.org`,
-  waze:       ({name,city})        => `"${name}" "${city}" Waze place`,
-  dataaxle:   ({name,city})        => `"${name}" "${city}" "Data Axle" OR "Infogroup" listing`,
-  neustar:    ({name,city})        => `"${name}" "${city}" "Neustar Localeze" OR "TransUnion Local"`,
-  foursquare: ({name,city})        => `"${name}" "${city}" site:foursquare.com`,
-  ypthryv:    ({name,city})        => `"${name}" "${city}" site:thryv.com`,
+  gbp:        ({name,address,city})  => `${name} ${address} ${city} Google Business Profile`,
+  apple:      ({name,address,city})  => `${name} ${address} ${city} Apple Maps`,
+  bing:       ({name,address,city})  => `${name} ${address} ${city} Bing Places`,
+  fb:         ({name,address,city})  => `${name} ${address} ${city} site:facebook.com`,
+  li:         ({name,city})          => `${name} ${city} site:linkedin.com/company`,
+  yelp:       ({name,address,city})  => `${name} ${address} ${city} site:yelp.com`,
+  fl_firm:    ({name,address,city})  => `${name} ${address} ${city} site:findlaw.com`,
+  avvo_firm:  ({name,address,city})  => `${name} ${address} ${city} site:avvo.com`,
+  avvo_atty:  ({owner,city,state})   => `${owner} ${city} ${state} site:avvo.com`,
+  mart_firm:  ({name,address,city})  => `${name} ${address} ${city} site:martindale.com`,
+  mart_atty:  ({owner,city,state})   => `${owner} ${city} ${state} site:martindale.com`,
+  justia_firm:({name,address,city})  => `${name} ${address} ${city} site:justia.com`,
+  justia_atty:({owner,city,state})   => `${owner} ${city} ${state} site:justia.com`,
+  law_firm:   ({name,address,city})  => `${name} ${address} ${city} site:lawyers.com`,
+  law_atty:   ({owner,city,state})   => `${owner} ${city} ${state} site:lawyers.com`,
+  sl_firm:    ({name,address,city})  => `${name} ${address} ${city} site:superlawyers.com`,
+  sl_atty:    ({owner,city,state})   => `${owner} ${city} ${state} site:superlawyers.com`,
+  bl_atty:    ({owner,city,state})   => `${owner} ${city} ${state} site:bestlawyers.com`,
+  nolo_firm:  ({name,address,city})  => `${name} ${address} ${city} site:nolo.com`,
+  nolo_atty:  ({owner,city,state})   => `${owner} ${city} ${state} site:nolo.com`,
+  hg_firm:    ({name,address,city})  => `${name} ${address} ${city} site:hg.org`,
+  hg_atty:    ({owner,city,state})   => `${owner} ${city} ${state} site:hg.org`,
+  lawinfo:    ({name,address,city})  => `${name} ${address} ${city} site:lawinfo.com`,
+  bbb:        ({name,address,city})  => `${name} ${address} ${city} site:bbb.org`,
+  statebar:   ({owner,city,state})   => `${owner} ${city} ${state} state bar attorney`,
+  yp:         ({name,address,city})  => `${name} ${address} ${city} site:yellowpages.com`,
+  chambers:   ({name,city})          => `${name} ${city} site:chambers.com`,
+  mapquest:   ({name,address,city})  => `${name} ${address} ${city} site:mapquest.com`,
+  nextdoor:   ({name,address,city})  => `${name} ${address} ${city} site:nextdoor.com`,
+  alignable:  ({name,address,city})  => `${name} ${address} ${city} site:alignable.com`,
+  wiki:       ({name})               => `${name} law firm site:wikipedia.org`,
+  waze:       ({name,address,city})  => `${name} ${address} ${city} Waze`,
+  dataaxle:   ({name,address,city})  => `${name} ${address} ${city} Data Axle Infogroup`,
+  neustar:    ({name,address,city})  => `${name} ${address} ${city} Neustar Localeze`,
+  foursquare: ({name,address,city})  => `${name} ${address} ${city} site:foursquare.com`,
+  ypthryv:    ({name,address,city})  => `${name} ${address} ${city} site:thryv.com`,
 };
 
 // ===== STATE =====
@@ -772,7 +773,13 @@ function getSearchQueryData(locId){
   if(!c||!loc)return null;
   const cityPart=(loc.city||'').split(',')[0].trim();
   const statePart=(loc.city||'').split(',')[1]?.trim()?.split(' ')[0]||'';
-  return{name:loc.gbpname||c.name,city:cityPart,state:statePart,owner:c.owner};
+  return{
+    name:loc.gbpname||c.name,
+    address:loc.address||'',
+    city:cityPart,
+    state:statePart,
+    owner:c.owner
+  };
 }
 
 function searchDir(locId,dirId){
