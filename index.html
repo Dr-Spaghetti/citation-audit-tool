@@ -301,6 +301,24 @@ const STATUSES = [
 const STATUS_MAP = Object.fromEntries(STATUSES.map(s=>[s.val,s]));
 const HIGH_PRIORITY_DIRS = ['gbp','yelp','bbb','fb','li','avvo_atty','mart_atty','justia_atty','fl_firm'];
 
+// Site keyword or domain used in phone/address fallback searches
+const DIR_SITE = {
+  gbp:'Google Business Profile',apple:'Apple Maps',bing:'Bing Places',
+  fb:'facebook.com',li:'linkedin.com',yelp:'yelp.com',
+  fl_firm:'findlaw.com',avvo_firm:'avvo.com',avvo_atty:'avvo.com',
+  mart_firm:'martindale.com',mart_atty:'martindale.com',
+  justia_firm:'justia.com',justia_atty:'justia.com',
+  law_firm:'lawyers.com',law_atty:'lawyers.com',
+  sl_firm:'superlawyers.com',sl_atty:'superlawyers.com',
+  bl_atty:'bestlawyers.com',nolo_firm:'nolo.com',nolo_atty:'nolo.com',
+  hg_firm:'hg.org',hg_atty:'hg.org',lawinfo:'lawinfo.com',
+  bbb:'bbb.org',statebar:'state bar',yp:'yellowpages.com',
+  chambers:'chambers.com',mapquest:'mapquest.com',
+  nextdoor:'nextdoor.com',alignable:'alignable.com',
+  wiki:'wikipedia.org',waze:'Waze',dataaxle:'Data Axle',
+  neustar:'Neustar Localeze',foursquare:'foursquare.com',ypthryv:'thryv.com',
+};
+
 // Search query builders per directory — receives {name, address, city, state, owner}
 // Each query uses the real NAP data from that specific location record
 const DIR_SEARCH = {
@@ -778,24 +796,45 @@ function getSearchQueryData(locId){
     address:loc.address||'',
     city:cityPart,
     state:statePart,
-    owner:c.owner
+    owner:c.owner,
+    phone:loc.phone||'',
+    phone2:loc.phone2||''
   };
+}
+
+// Build the 3 search angle queries for a given directory + location data
+function buildSearchAngles(dirId, qd){
+  const builder=DIR_SEARCH[dirId];
+  if(!builder)return[];
+  const site=DIR_SITE[dirId]||'';
+  // Determine site: prefix or keyword based on whether it's a real domain
+  const isDomain=site.includes('.');
+  const siteToken=isDomain?`site:${site}`:site;
+  const angles=[
+    // 1 — Primary: name/owner + address (catches exact and near-exact names)
+    builder(qd),
+    // 2 — Phone: catches any listing under ANY name if the phone matches
+    qd.phone ? `"${qd.phone}" ${siteToken}` : null,
+    // 3 — Address: catches listings where name AND phone are wrong
+    qd.address ? `"${qd.address}" "${qd.city}" ${siteToken}` : null,
+  ];
+  return angles.filter(Boolean);
 }
 
 function searchDir(locId,dirId){
   const qd=getSearchQueryData(locId);
-  const builder=DIR_SEARCH[dirId];
-  if(!qd||!builder)return;
-  window.open('https://www.google.com/search?q='+encodeURIComponent(builder(qd)),'_blank');
+  if(!qd||!DIR_SEARCH[dirId])return;
+  const angles=buildSearchAngles(dirId,qd);
+  angles.forEach(q=>window.open('https://www.google.com/search?q='+encodeURIComponent(q),'_blank'));
 }
 
 function searchAllUnsearched(){
   const loc=getLocation();if(!loc)return;
   const missing=DIRS.filter(d=>{const e=loc.dirs[d.id];return (!e||!e.url)&&DIR_SEARCH[d.id];});
   if(!missing.length){alert('All directories already have URLs!');return;}
-  if(!confirm('Open '+missing.length+' Google search tabs for directories without URLs?\n\nAllow popups for this site if your browser blocks them.'))return;
+  if(!confirm('Open search tabs for '+missing.length+' directories missing URLs?\n\n3 search angles per directory (name, phone, address).\nAllow popups if your browser blocks them.'))return;
   const qd=getSearchQueryData(loc.id);if(!qd)return;
-  missing.forEach(d=>window.open('https://www.google.com/search?q='+encodeURIComponent(DIR_SEARCH[d.id](qd)),'_blank'));
+  missing.forEach(d=>buildSearchAngles(d.id,qd).forEach(q=>window.open('https://www.google.com/search?q='+encodeURIComponent(q),'_blank')));
 }
 
 function editUrl(locId,dirId){
