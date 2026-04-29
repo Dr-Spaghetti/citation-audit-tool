@@ -833,11 +833,27 @@ function searchDir(locId,dirId){
 
 function searchAllUnsearched(){
   const loc=getLocation();if(!loc)return;
+  const c=getClient();if(!c)return;
   const missing=DIRS.filter(d=>{const e=loc.dirs[d.id];return(!e||!e.url)&&DIR_DIRECT[d.id];});
   if(!missing.length){alert('All directories already have URLs!');return;}
-  if(!confirm('Open '+missing.length+' search tabs (one per directory)?\nAllow popups if your browser blocks them.'))return;
   const qd=getSearchQueryData(loc.id);if(!qd)return;
-  missing.forEach(d=>{const url=buildSearchUrl(d.id,qd);if(url)window.open(url,'_blank');});
+  const rows=missing.map(d=>{
+    const url=buildSearchUrl(d.id,qd);
+    if(!url)return'';
+    return`<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600">${esc(d.name)}</div>
+        <div style="font-size:11px;color:var(--muted)">${esc(d.cat)}</div>
+      </div>
+      <a href="${esc(url)}" target="_blank" onclick="this.style.opacity='.4'" style="background:rgba(79,142,247,.12);border:1px solid rgba(79,142,247,.25);border-radius:6px;padding:5px 12px;color:var(--accent);font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0">🔍 Search →</a>
+    </div>`;
+  }).join('');
+  showModal(`
+    <h3>Search All Unsearched</h3>
+    <p>${missing.length} directories missing URLs for <strong>${esc(loc.label)}</strong>. Click each to open a targeted search — each combines name, phone, and address into one query.</p>
+    <div style="max-height:420px;overflow-y:auto;margin:0 -4px;padding:0 4px">${rows}</div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Done</button></div>
+  `);
 }
 
 function editUrl(locId,dirId){
