@@ -319,45 +319,47 @@ const DIR_SITE = {
   neustar:'Neustar Localeze',foursquare:'foursquare.com',ypthryv:'thryv.com',
 };
 
-// Search query builders per directory — receives {name, address, city, state, owner}
-// Each query uses the real NAP data from that specific location record
-const DIR_SEARCH = {
-  gbp:        ({name,address,city})  => `${name} ${address} ${city} Google Business Profile`,
-  apple:      ({name,address,city})  => `${name} ${address} ${city} Apple Maps`,
-  bing:       ({name,address,city})  => `${name} ${address} ${city} Bing Places`,
-  fb:         ({name,address,city})  => `${name} ${address} ${city} site:facebook.com`,
-  li:         ({name,city})          => `${name} ${city} site:linkedin.com/company`,
-  yelp:       ({name,address,city})  => `${name} ${address} ${city} site:yelp.com`,
-  fl_firm:    ({name,address,city})  => `${name} ${address} ${city} site:findlaw.com`,
-  avvo_firm:  ({name,address,city})  => `${name} ${address} ${city} site:avvo.com`,
-  avvo_atty:  ({owner,city,state})   => `${owner} ${city} ${state} site:avvo.com`,
-  mart_firm:  ({name,address,city})  => `${name} ${address} ${city} site:martindale.com`,
-  mart_atty:  ({owner,city,state})   => `${owner} ${city} ${state} site:martindale.com`,
-  justia_firm:({name,address,city})  => `${name} ${address} ${city} site:justia.com`,
-  justia_atty:({owner,city,state})   => `${owner} ${city} ${state} site:justia.com`,
-  law_firm:   ({name,address,city})  => `${name} ${address} ${city} site:lawyers.com`,
-  law_atty:   ({owner,city,state})   => `${owner} ${city} ${state} site:lawyers.com`,
-  sl_firm:    ({name,address,city})  => `${name} ${address} ${city} site:superlawyers.com`,
-  sl_atty:    ({owner,city,state})   => `${owner} ${city} ${state} site:superlawyers.com`,
-  bl_atty:    ({owner,city,state})   => `${owner} ${city} ${state} site:bestlawyers.com`,
-  nolo_firm:  ({name,address,city})  => `${name} ${address} ${city} site:nolo.com`,
-  nolo_atty:  ({owner,city,state})   => `${owner} ${city} ${state} site:nolo.com`,
-  hg_firm:    ({name,address,city})  => `${name} ${address} ${city} site:hg.org`,
-  hg_atty:    ({owner,city,state})   => `${owner} ${city} ${state} site:hg.org`,
-  lawinfo:    ({name,address,city})  => `${name} ${address} ${city} site:lawinfo.com`,
-  bbb:        ({name,address,city})  => `${name} ${address} ${city} site:bbb.org`,
-  statebar:   ({owner,city,state})   => `${owner} ${city} ${state} state bar attorney`,
-  yp:         ({name,address,city})  => `${name} ${address} ${city} site:yellowpages.com`,
-  chambers:   ({name,city})          => `${name} ${city} site:chambers.com`,
-  mapquest:   ({name,address,city})  => `${name} ${address} ${city} site:mapquest.com`,
-  nextdoor:   ({name,address,city})  => `${name} ${address} ${city} site:nextdoor.com`,
-  alignable:  ({name,address,city})  => `${name} ${address} ${city} site:alignable.com`,
-  wiki:       ({name})               => `${name} law firm site:wikipedia.org`,
-  waze:       ({name,address,city})  => `${name} ${address} ${city} Waze`,
-  dataaxle:   ({name,address,city})  => `${name} ${address} ${city} Data Axle Infogroup`,
-  neustar:    ({name,address,city})  => `${name} ${address} ${city} Neustar Localeze`,
-  foursquare: ({name,address,city})  => `${name} ${address} ${city} site:foursquare.com`,
-  ypthryv:    ({name,address,city})  => `${name} ${address} ${city} site:thryv.com`,
+// Direct search URL builders — opens the directory's own search engine
+// Attorney profile dirs use owner name; firm dirs use business name
+// Falls back to Google for dirs with no public search endpoint
+const _e = encodeURIComponent;
+const DIR_DIRECT = {
+  gbp:         d=>`https://www.google.com/maps/search/${_e(d.name+' '+d.address+' '+d.city+' '+d.state)}`,
+  apple:       d=>`https://maps.apple.com/?q=${_e(d.name+' '+d.address+' '+d.city)}`,
+  bing:        d=>`https://www.bing.com/maps?q=${_e(d.name+' '+d.city+' '+d.state)}`,
+  fb:          d=>`https://www.facebook.com/search/top/?q=${_e(d.name+' '+d.city)}`,
+  li:          d=>`https://www.linkedin.com/search/results/companies/?keywords=${_e(d.name)}`,
+  yelp:        d=>`https://www.yelp.com/search?find_desc=${_e(d.name)}&find_loc=${_e(d.city+' '+d.state)}`,
+  fl_firm:     d=>`https://lawyers.findlaw.com/lawyer/firm/search?q=${_e(d.name)}&loc=${_e(d.city+' '+d.state)}`,
+  avvo_firm:   d=>`https://www.avvo.com/search?q=${_e(d.name)}&loc=${_e(d.city+' '+d.state)}`,
+  avvo_atty:   d=>`https://www.avvo.com/search?q=${_e(d.owner)}&loc=${_e(d.city+' '+d.state)}&type=attorneys`,
+  mart_firm:   d=>`https://www.martindale.com/find-attorneys/?qs=${_e(d.name)}&loc=${_e(d.city+' '+d.state)}`,
+  mart_atty:   d=>`https://www.martindale.com/find-attorneys/?qs=${_e(d.owner)}&loc=${_e(d.city+' '+d.state)}`,
+  justia_firm: d=>`https://lawyers.justia.com/search?query=${_e(d.name)}&location=${_e(d.city+' '+d.state)}`,
+  justia_atty: d=>`https://lawyers.justia.com/search?query=${_e(d.owner)}&location=${_e(d.city+' '+d.state)}`,
+  law_firm:    d=>`https://www.lawyers.com/find-a-lawyer/?q=${_e(d.name)}&loc=${_e(d.city+' '+d.state)}`,
+  law_atty:    d=>`https://www.lawyers.com/find-a-lawyer/?q=${_e(d.owner)}&loc=${_e(d.city+' '+d.state)}`,
+  sl_firm:     d=>`https://www.superlawyers.com/all/index.html?query=${_e(d.name)}&location=${_e(d.city+' '+d.state)}`,
+  sl_atty:     d=>`https://www.superlawyers.com/all/index.html?query=${_e(d.owner)}&location=${_e(d.city+' '+d.state)}`,
+  bl_atty:     d=>`https://www.bestlawyers.com/search#!/${_e(d.state)}?q=${_e(d.owner)}`,
+  nolo_firm:   d=>`https://www.nolo.com/lawyers/find-search.html?q=${_e(d.name)}&loc=${_e(d.city+' '+d.state)}`,
+  nolo_atty:   d=>`https://www.nolo.com/lawyers/find-search.html?q=${_e(d.owner)}&loc=${_e(d.city+' '+d.state)}`,
+  hg_firm:     d=>`https://www.hg.org/find-lawyers-and-law-firms.html?q=${_e(d.name)}&loc=${_e(d.city)}`,
+  hg_atty:     d=>`https://www.hg.org/find-lawyers-and-law-firms.html?q=${_e(d.owner)}&loc=${_e(d.city)}`,
+  lawinfo:     d=>`https://www.lawinfo.com/find-a-lawyer/?q=${_e(d.name)}&loc=${_e(d.city+' '+d.state)}`,
+  bbb:         d=>`https://www.bbb.org/search?find_text=${_e(d.name)}&find_loc=${_e(d.city+' '+d.state)}`,
+  statebar:    d=>`https://www.google.com/search?q=${_e(d.owner+' '+d.state+' state bar attorney')}`,
+  yp:          d=>`https://www.yellowpages.com/search?q=${_e(d.name)}&geo=${_e(d.city+' '+d.state)}`,
+  chambers:    d=>`https://chambers.com/firms?query=${_e(d.name)}&location=${_e(d.city)}`,
+  mapquest:    d=>`https://www.mapquest.com/search/results?query=${_e(d.name+' '+d.city+' '+d.state)}`,
+  nextdoor:    d=>`https://nextdoor.com/search/?query=${_e(d.name)}`,
+  alignable:   d=>`https://www.alignable.com/search?q=${_e(d.name)}&location=${_e(d.city+' '+d.state)}`,
+  wiki:        d=>`https://en.wikipedia.org/w/index.php?search=${_e(d.name+' law firm')}`,
+  waze:        d=>`https://www.waze.com/en/search?q=${_e(d.name+' '+d.city)}`,
+  dataaxle:    d=>`https://www.google.com/search?q=${_e('"'+d.name+'" "'+d.address+'" "'+d.city+'" "Data Axle"')}`,
+  neustar:     d=>`https://www.google.com/search?q=${_e('"'+d.name+'" "'+d.address+'" "'+d.city+'" "Neustar Localeze"')}`,
+  foursquare:  d=>`https://foursquare.com/explore?q=${_e(d.name)}&near=${_e(d.city+' '+d.state)}`,
+  ypthryv:     d=>`https://www.yellowpages.com/search?q=${_e(d.name)}&geo=${_e(d.city+' '+d.state)}`,
 };
 
 // ===== STATE =====
@@ -722,7 +724,7 @@ function renderLocationContent(){
               ${catDirs.map((d,i)=>{
                 const entry=loc.dirs[d.id]||{status:'not_started',url:'',notes:''};
                 const sinfo=STATUS_MAP[entry.status]||STATUS_MAP['not_started'];
-                const hasSearch=!!DIR_SEARCH[d.id];
+                const hasSearch=!!DIR_DIRECT[d.id];
                 const searchBtnHtml=hasSearch?`<button onclick="searchDir('${loc.id}','${d.id}')" style="background:rgba(79,142,247,.1);border:1px solid rgba(79,142,247,.25);border-radius:5px;padding:3px 7px;color:var(--accent);cursor:pointer;font-size:11px;white-space:nowrap;flex-shrink:0" title="Open targeted Google search">🔍</button>`:'';
                 const urlCellHtml=entry.url
                   ?`<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
@@ -802,39 +804,36 @@ function getSearchQueryData(locId){
   };
 }
 
-// Build the 3 search angle queries for a given directory + location data
+// Build 3 search angle URLs for a given directory + location data:
+// 1. Direct search on the directory's own site (by name/owner)
+// 2. Google phone search on that directory (catches any-name listings with matching phone)
+// 3. Google address search on that directory (catches listings where name AND phone are wrong)
 function buildSearchAngles(dirId, qd){
-  const builder=DIR_SEARCH[dirId];
-  if(!builder)return[];
+  const directBuilder=DIR_DIRECT[dirId];
+  if(!directBuilder)return[];
   const site=DIR_SITE[dirId]||'';
-  // Determine site: prefix or keyword based on whether it's a real domain
   const isDomain=site.includes('.');
   const siteToken=isDomain?`site:${site}`:site;
-  const angles=[
-    // 1 — Primary: name/owner + address (catches exact and near-exact names)
-    builder(qd),
-    // 2 — Phone: catches any listing under ANY name if the phone matches
-    qd.phone ? `"${qd.phone}" ${siteToken}` : null,
-    // 3 — Address: catches listings where name AND phone are wrong
-    qd.address ? `"${qd.address}" "${qd.city}" ${siteToken}` : null,
-  ];
-  return angles.filter(Boolean);
+  return[
+    directBuilder(qd),
+    qd.phone?`https://www.google.com/search?q=${_e('"'+qd.phone+'" '+siteToken)}`:null,
+    qd.address?`https://www.google.com/search?q=${_e('"'+qd.address+'" "'+qd.city+'" '+siteToken)}`:null,
+  ].filter(Boolean);
 }
 
 function searchDir(locId,dirId){
   const qd=getSearchQueryData(locId);
-  if(!qd||!DIR_SEARCH[dirId])return;
-  const angles=buildSearchAngles(dirId,qd);
-  angles.forEach(q=>window.open('https://www.google.com/search?q='+encodeURIComponent(q),'_blank'));
+  if(!qd||!DIR_DIRECT[dirId])return;
+  buildSearchAngles(dirId,qd).forEach(url=>window.open(url,'_blank'));
 }
 
 function searchAllUnsearched(){
   const loc=getLocation();if(!loc)return;
-  const missing=DIRS.filter(d=>{const e=loc.dirs[d.id];return (!e||!e.url)&&DIR_SEARCH[d.id];});
+  const missing=DIRS.filter(d=>{const e=loc.dirs[d.id];return(!e||!e.url)&&DIR_DIRECT[d.id];});
   if(!missing.length){alert('All directories already have URLs!');return;}
-  if(!confirm('Open search tabs for '+missing.length+' directories missing URLs?\n\n3 search angles per directory (name, phone, address).\nAllow popups if your browser blocks them.'))return;
+  if(!confirm('Open search tabs for '+missing.length+' directories missing URLs?\n\n3 angles each: direct directory search + phone + address.\nAllow popups if your browser blocks them.'))return;
   const qd=getSearchQueryData(loc.id);if(!qd)return;
-  missing.forEach(d=>buildSearchAngles(d.id,qd).forEach(q=>window.open('https://www.google.com/search?q='+encodeURIComponent(q),'_blank')));
+  missing.forEach(d=>buildSearchAngles(d.id,qd).forEach(url=>window.open(url,'_blank')));
 }
 
 function editUrl(locId,dirId){
