@@ -804,36 +804,40 @@ function getSearchQueryData(locId){
   };
 }
 
-// Build 3 search angle URLs for a given directory + location data:
-// 1. Direct search on the directory's own site (by name/owner)
-// 2. Google phone search on that directory (catches any-name listings with matching phone)
-// 3. Google address search on that directory (catches listings where name AND phone are wrong)
-function buildSearchAngles(dirId, qd){
+// Build ONE search URL per directory combining all 3 angles into a single OR query:
+// "Firm Name" OR "(555) 123-4567" OR "123 Main St" site:avvo.com
+// Directories without a site: domain use their direct search URL instead.
+function buildSearchUrl(dirId, qd){
   const directBuilder=DIR_DIRECT[dirId];
-  if(!directBuilder)return[];
+  if(!directBuilder)return null;
   const site=DIR_SITE[dirId]||'';
   const isDomain=site.includes('.');
-  const siteToken=isDomain?`site:${site}`:site;
-  return[
-    directBuilder(qd),
-    qd.phone?`https://www.google.com/search?q=${_e('"'+qd.phone+'" '+siteToken)}`:null,
-    qd.address?`https://www.google.com/search?q=${_e('"'+qd.address+'" "'+qd.city+'" '+siteToken)}`:null,
-  ].filter(Boolean);
+  if(isDomain){
+    // Combine name + phone + address into one OR query on that directory
+    const primary=qd.owner&&dirId.endsWith('_atty')?qd.owner:qd.name;
+    const parts=['"'+primary+'"'];
+    if(qd.phone)parts.push('"'+qd.phone+'"');
+    if(qd.address)parts.push('"'+qd.address+'"');
+    return'https://www.google.com/search?q='+_e(parts.join(' OR ')+' site:'+site);
+  }
+  // No site: domain — open the directory's own search directly
+  return directBuilder(qd);
 }
 
 function searchDir(locId,dirId){
   const qd=getSearchQueryData(locId);
-  if(!qd||!DIR_DIRECT[dirId])return;
-  buildSearchAngles(dirId,qd).forEach(url=>window.open(url,'_blank'));
+  if(!qd)return;
+  const url=buildSearchUrl(dirId,qd);
+  if(url)window.open(url,'_blank');
 }
 
 function searchAllUnsearched(){
   const loc=getLocation();if(!loc)return;
   const missing=DIRS.filter(d=>{const e=loc.dirs[d.id];return(!e||!e.url)&&DIR_DIRECT[d.id];});
   if(!missing.length){alert('All directories already have URLs!');return;}
-  if(!confirm('Open search tabs for '+missing.length+' directories missing URLs?\n\n3 angles each: direct directory search + phone + address.\nAllow popups if your browser blocks them.'))return;
+  if(!confirm('Open '+missing.length+' search tabs (one per directory)?\nAllow popups if your browser blocks them.'))return;
   const qd=getSearchQueryData(loc.id);if(!qd)return;
-  missing.forEach(d=>buildSearchAngles(d.id,qd).forEach(url=>window.open(url,'_blank')));
+  missing.forEach(d=>{const url=buildSearchUrl(d.id,qd);if(url)window.open(url,'_blank');});
 }
 
 function editUrl(locId,dirId){
